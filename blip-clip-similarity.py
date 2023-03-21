@@ -1,11 +1,6 @@
 from transformers import CLIPProcessor, CLIPModel
-from PIL import Image
-import requests
 import torch
 import json
-
-# function to calculate the cosine similarity of
-# the clip embedding and the blip caption
 
 # Using the clip-vit-base-patch32 model from openai
 model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
@@ -18,48 +13,55 @@ data_clip = json.load(f)
 f = open("blip.json")
 data_blip = json.load(f)
 
-def cos_sim_clip_blip(image, caption):
-    # clip image embedding
-    # convert json data in tensor
-    # data = []
-    # for i in image:
-    #     if type(i) == str:
-    #         float(i)
-    #     else:
-    #         data.append(i)
+def cos_sim_clip_blip(data_clip, data_blip):
 
-    captions_list = []
-    captions_list.append(caption)
-    captions_list.append("dog in front of a house")
+    image = data_clip['y']
+    caption = data_blip['text']
 
     image_features = torch.tensor(image)
     # add new dimension at position 0 to match shape of text tensor
     image_features = image_features.unsqueeze(0)
-    print(image_features.shape)
-    image_features /= torch.linalg.norm(image_features, ord=2, dim=1, keepdim=True)
-    print(image_features)
+    image_features /= torch.linalg.norm(image_features, ord=2, dim=-1, keepdim=True)
+    #image_features /= image_features.norm(p=2, dim=-1, keepdim=True)
 
     # blip caption
-    text_input = processor(text=captions_list, return_tensors="pt")
-    text_feature = model.get_text_features(**text_input)
-    text_feature /= torch.linalg.norm(text_feature, ord=2, dim=1, keepdim=True)
-    print(text_feature)
-    print(text_feature.shape)
+    text_input = processor(text=caption, return_tensors="pt")
+    text_features = model.get_text_features(**text_input)
+    text_features /= torch.linalg.norm(text_features, ord=2, dim=-1, keepdim=True)
+    #text_features /= text_features.norm(p=2, dim=-1, keepdim=True)
 
-    # calculate cos similarity
+    # compute cosine similarity
+    # funktioniert aber kommen komische Ergenisse raus
+    logit_scale = model.logit_scale.exp()
+    similarity = torch.nn.functional.cosine_similarity(text_features, image_features) * logit_scale
 
-    sim = torch.tensor([[torch.dot(x, image_features[0]) for x in text_feature]])
-    scores = (sim * 100).softmax(dim=1)[0]
 
     return [{
-        "score": scores[i].item(),
-        "label": label
-    } for i, label in enumerate(captions_list)]
+        "score": similarity.item(),
+        "label": caption,
+        "timestamp": data_clip['t']
+    }]
+
+    # sim = image_features.detach().numpy() @ text_features.detach().numpy().T
+    # return (sim * 100).softmax(dim=1)[0]
+
+    # geht auch mit der funktion
+    #similarity_score = torch.nn.functional.cosine_similarity(image_features, text_features)
+    #return similarity_score.item() * 100
+
+
+def iterate_over_data(data_clip, data_blip):
+    results = []
+    i = 0
+    for i in data_clip:
+        if data_blip[i]['begin'] <= data_clip[i]['t'] <= data_blip[i]['end']:
+            res = cos_sim_clip_blip(data_clip[i], data_blip[i])
+            results.append(res)
 
 
 def main():
-    image_features = data_clip[0]['y']
-    caption = data_blip[0]['text']
+    image_features = data_clip[0]
+    caption = data_blip[0]
     result = cos_sim_clip_blip(image_features, caption)
     print('result:')
     print(result)
