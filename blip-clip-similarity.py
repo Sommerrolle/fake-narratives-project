@@ -4,6 +4,8 @@ import json
 from operator import itemgetter
 import os
 import csv
+import pandas as pd
+import matplotlib.pyplot as plt
 
 # Using the clip-vit-base-patch32 model from openai
 model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
@@ -85,11 +87,55 @@ def write_to_csv(results):
         fc.writerows(results)
 
 
+
 def main():
-    res = iterate_over_data(data_clip, data_blip)
-    res_ranked = rank_scores(res)
-    print(res_ranked)
-    write_to_csv(res_ranked)
+    # creating results.csv from a blip.json and a clip.json with their cosine similarity score
+    # res = iterate_over_data(data_clip, data_blip)
+    # res_ranked = rank_scores(res)
+    # print(res_ranked)
+    # write_to_csv(res_ranked)
+
+    # concatenate .csv to one big .csv for bildtv and tagesschau
+    # filenames = [
+    #     "bildtv/20220127_Ukraine_konflikt_Ukraine_braucht_Defensiv/results_20220127.csv",
+    #     "bildtv/20220214_Ukraine_Konflikt_droht_Eskalation/results_20220214.csv",
+    #     "bildtv/20220215_Krimi_um_Krieg_und_Frieden/results_20220215.csv",
+    #     "bildtv/20220221_Putin_geht_imemr_einen_Schritt/results_20220221.csv",
+    #     "bildtv/20220222_Sorge_vor_einem_großen_Krieg/results_20220222.csv",
+    #     "bildtv/20220224_Russland_Angriff_Seit_heute_Nacht/results_20220224.csv",
+    #     "bildtv/20220225_Kampf_um_Kiew_Bürger_wollen/results_20220225.csv",
+    #     "bildtv/20220226_Raketen_Einschlag_In_Kiew/results_20220226.csv"
+    # ]
+
+    # filenames = [
+    #     "tagesschau/20220127/results_20220127.csv",
+    #     "tagesschau/20220214/results_20220214.csv",
+    #     "tagesschau/20220221/results_20220221.csv",
+    #     "tagesschau/20220222/results_20220222.csv",
+    #     "tagesschau/20220224/results_20220224.csv",
+    #     "tagesschau/20220225/results_20220225.csv",
+    #     "tagesschau/20220226/results_20220226.csv",
+    #     "tagesschau/20220227/results_20220227.csv",
+    # ]
+
+    # Create combinded csv of all files in filenames
+    # combined_csv = pd.concat([pd.read_csv(f) for f in filenames])
+    # combined_csv.to_csv("tagesschau/results_combined.csv", index=False)
+
+    #pandas section create awesome diagramms for visualisation
+    df = pd.read_csv("bildtv/results_combined_bildtv.csv")
+    score_column = df["score"]
+
+    # setting font size to 30
+    plt.rcParams.update({'font.size': 14})
+    # create histogram
+    score_column.plot(kind="hist", color='lightblue', ec="black")
+    # setting labels
+    plt.xlabel("Kosinus-Ähnlichkeits-Wert")
+    plt.ylabel("Häufigkeit")
+
+    #plt.show()
+    plt.savefig('verteilung-der-scores.png', bbox_inches='tight')
 
 
 if __name__ == "__main__":
