@@ -2,16 +2,20 @@ from transformers import CLIPProcessor, CLIPModel
 import torch
 import json
 from operator import itemgetter
+import os
+import csv
 
 # Using the clip-vit-base-patch32 model from openai
 model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
 processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
 
 # images features of clip.json
-f = open("clip.json")
+show = "tagesschau"
+day = "20220227"
+f = open(os.path.join(show, day, "clip.json"))
 data_clip = json.load(f)
 
-f = open("blip.json")
+f = open(os.path.join(show, day, "blip.json"))
 data_blip = json.load(f)
 
 
@@ -32,7 +36,6 @@ def cos_sim_clip_blip(data_clip, data_blip):
     # text_features /= text_features.norm(p=2, dim=-1, keepdim=True)
 
     # compute cosine similarity
-    # funktioniert aber kommen komische Ergenisse raus
     logit_scale = model.logit_scale.exp()
     similarity = torch.nn.functional.cosine_similarity(text_features, image_features) * logit_scale
 
@@ -71,10 +74,22 @@ def rank_scores(results):
     return sorted(results, key=itemgetter('score'), reverse=True)
 
 
+def write_to_csv(results):
+    filename = 'results_' + day + ".csv"
+    filepath = os.path.join(show, day, filename)
+    with open(filepath, 'w', encoding='utf8', newline='') as output_file:
+        fc = csv.DictWriter(output_file,
+                            fieldnames=results[0].keys(),
+                            )
+        fc.writeheader()
+        fc.writerows(results)
+
+
 def main():
     res = iterate_over_data(data_clip, data_blip)
     res_ranked = rank_scores(res)
     print(res_ranked)
+    write_to_csv(res_ranked)
 
 
 if __name__ == "__main__":
